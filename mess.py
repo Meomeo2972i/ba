@@ -453,4 +453,81 @@ def main():
                         else:
                             match2 = re.search(r'facebook.com/([^/?]+)', item)
                             if match2:
-    
+                               username = match2.group(1)
+                                try:
+                                    res = requests.get(f'https://mbasic.facebook.com/{username}', headers={
+                                        'Cookie': cookie_obj,
+                                        'User-Agent': random.choice(USER_AGENTS)
+                                    })
+                                    uid_match = re.search(r'owner_id=(\d+)', res.text)
+                                    if uid_match:
+                                        uid = uid_match.group(1)
+                                except:
+                                    pass
+                    if uid:
+                        name = get_name_from_uid(uid, cookie_obj, messenger_temp.fb_dtsg, "__a", "1b", "1015919737")
+                        if "Lỗi" in name:
+                            print(f"Lỗi khi lấy tên UID {uid}: {name}")
+                            return
+                        tag_id.append(uid)
+                        tag_name.append(name)
+                print(f"Đã lấy tên: {', '.join(tag_name)}")
+                delay = float(input("Nhập delay giữa mỗi lần gửi (giây): ").strip())
+
+        messengers = []
+        for cookie in cookies:
+            try:
+                messenger = Messenger(cookie)
+                profile_link = f"https://www.facebook.com/profile.php?id={messenger.user_id}"
+                print(f"Đăng nhập thành công: {messenger.name} | UID: {messenger.user_id} | Link: {profile_link}")
+                messengers.append(messenger)
+            except Exception as e:
+                print(f"Lỗi đăng nhập: {str(e)}")
+
+        if not messengers:
+            print("Không có cookie hợp lệ.")
+            return
+
+        print("\nBắt đầu gửi tin nhắn...")
+        threads = []
+
+        if mode == 1:
+            for messenger in messengers:
+                t = threading.Thread(
+                    target=worker,
+                    args=(messenger, recipient_ids, contents, delay, mode,
+                          enable_tagging, True, tag_name, tag_id, True, None),
+                    daemon=True
+                )
+                threads.append(t)
+                t.start()
+        else:
+            if spam_mode == 1:
+                for messenger in messengers:
+                    t = threading.Thread(
+                        target=worker,
+                        args=(messenger, recipient_ids, contents, delay, mode,
+                              False, False, None, None, True, file_contents),
+                        daemon=True
+                    )
+                    threads.append(t)
+                    t.start()
+            else:
+                for messenger in messengers:
+                    t = threading.Thread(
+                        target=worker,
+                        args=(messenger, recipient_ids, contents, delay, mode,
+                              False, False, None, None, False, file_contents),
+                        daemon=True
+                    )
+                    threads.append(t)
+                    t.start()
+
+        for t in threads:
+            t.join()
+
+    except Exception as e:
+        print(f"Lỗi: {e}")
+
+if __name__ == '__main__':
+    main()
